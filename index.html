@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Villa Laguna, Caorle | Casa vacanze con piscina coperta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#c9a96d;
+    --gold-soft:#bb9f65;
+    --ink:#0d0e08;
+    --cream:#f4f1ea;
+    --serif:'Playfair Display',Georgia,serif;
+    --sans:'Inter',-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:auto}
+  body{background:var(--ink);color:#fff;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+
+  /* ---------- nav ---------- */
+  .ss-nav{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;justify-content:space-between;align-items:center;
+    padding:28px 44px}
+  .ss-nav::before{content:"";position:absolute;inset:0;z-index:-1;
+    background:linear-gradient(to bottom,rgba(6,7,4,.45),rgba(6,7,4,0));pointer-events:none}
+  .ss-nav-mark{font-family:var(--serif);font-weight:600;font-size:17px;letter-spacing:.04em;color:#fff;text-decoration:none}
+  .ss-nav-mark span{font-style:italic;color:var(--gold)}
+  .ss-nav-cta{font-family:var(--sans);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:#1c1708;background:var(--gold);text-decoration:none;padding:13px 26px;border-radius:999px;
+    transition:background .3s ease, transform .3s ease}
+  .ss-nav-cta:hover{background:#dcc08a;transform:translateY(-1px)}
+
+  /* ---------- loader ---------- */
+  .ss-loader{position:fixed;inset:0;z-index:100;background:var(--ink);display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:18px;transition:opacity .8s ease}
+  .ss-loader.done{opacity:0;pointer-events:none}
+  .ss-loader p{font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:#8d8d84}
+  .ss-loader .bar{width:180px;height:1px;background:#2a2b22;overflow:hidden}
+  .ss-loader .bar i{display:block;height:100%;width:0%;background:var(--gold);transition:width .2s linear}
+
+  /* ---------- scroll sequence ---------- */
+  .ss-video-spacer{position:relative;height:720vh}
+  .ss-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--ink)}
+  .ss-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .ss-vignette{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(to bottom,rgba(6,7,4,.42) 0%,rgba(6,7,4,0) 22%,rgba(6,7,4,0) 62%,rgba(6,7,4,.55) 100%)}
+
+  .ss-scene{position:absolute;inset:0;display:flex;pointer-events:none;opacity:0;visibility:hidden}
+  .ss-scene[data-align="start"]{align-items:flex-end;justify-content:flex-start}
+  .ss-scene[data-align="center"]{align-items:center;justify-content:center;text-align:center}
+  .ss-overlay{padding:0 0 13vh;margin-left:7vw;max-width:660px}
+  .ss-scene[data-align="center"] .ss-overlay{padding:0 24px 7vh;max-width:880px;margin:0 auto}
+
+  .ss-kicker{font-size:11px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;color:var(--gold-soft);margin-bottom:26px}
+  .ss-scene-headline{font-family:var(--serif);font-weight:500;font-size:clamp(34px,3.2vw,62px);line-height:1.12;color:#fff;margin-bottom:26px}
+  .ss-scene-headline em{font-style:italic;color:var(--gold)}
+  .ss-scene-copy{font-size:15px;line-height:1.75;color:rgba(255,255,255,.82);max-width:460px;font-weight:400}
+  .ss-scene[data-align="center"] .ss-scene-copy{margin:0 auto}
+
+  .ss-scene .rise{transform:translateY(34px);opacity:0;transition:transform .9s cubic-bezier(.22,1,.36,1),opacity .9s ease}
+  .ss-scene.on .rise{transform:translateY(0);opacity:1}
+  .ss-scene.on .rise:nth-child(2){transition-delay:.08s}
+  .ss-scene.on .rise:nth-child(3){transition-delay:.16s}
+
+  /* ---------- scroll hint ---------- */
+  .ss-hint{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);z-index:5;opacity:0;transition:opacity .6s ease}
+  .ss-hint.on{opacity:.85}
+  .ss-hint svg{display:block;animation:hint 2.2s ease-in-out infinite}
+  @keyframes hint{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+
+  /* ---------- stats ---------- */
+  .ss-stats{background:var(--cream);color:var(--ink);padding:110px 7vw 90px}
+  .ss-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;max-width:1200px;margin:0 auto}
+  .ss-stat .k{font-size:10px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#8b8574;margin-bottom:14px}
+  .ss-stat .v{font-family:var(--serif);font-weight:500;font-size:clamp(26px,2.6vw,40px);color:#14150e}
+  .ss-stat .v small{font-family:var(--sans);font-size:14px;color:#8b8574;font-weight:400;margin-left:4px}
+
+  /* ---------- shared section bits ---------- */
+  .ss-light{background:var(--cream);color:var(--ink)}
+  .ss-wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+  .ss-sec-kicker{font-size:11px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;color:var(--gold-soft);margin-bottom:26px}
+  .ss-sec-head{font-family:var(--serif);font-weight:500;font-size:clamp(32px,3.2vw,52px);line-height:1.12;color:#14150e;margin-bottom:30px}
+  .ss-sec-copy{font-size:16px;line-height:1.85;color:#4c4a3f;max-width:640px}
+
+  /* ---------- estate features ---------- */
+  .ss-estate{padding:100px 0 60px}
+  .ss-feats{margin-top:70px}
+  .feat{display:grid;grid-template-columns:80px 1.2fr 1fr;gap:32px;align-items:start;
+    padding:44px 0;border-top:1px solid #ddd6c6}
+  .feat .num{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--gold-soft);padding-top:2px}
+  .feat h3{font-family:var(--serif);font-weight:600;font-size:24px;color:#14150e;margin-bottom:14px}
+  .feat .feat-copy{font-size:15px;line-height:1.75;color:#4c4a3f;max-width:420px}
+  .feat .feat-note{font-size:15px;line-height:1.7;color:#14150e;max-width:380px;justify-self:end;padding-top:4px}
+
+  /* ---------- gallery ---------- */
+  .ss-look{padding:100px 0 110px}
+  .gal{margin-top:64px;display:flex;flex-direction:column;gap:14px}
+  .gal-row{display:grid;gap:14px}
+  .gal-row.top{grid-template-columns:1.28fr 1fr}
+  .gal-row.bottom{grid-template-columns:1fr 1fr}
+  .gal-col{display:grid;gap:14px;grid-template-rows:1fr 1fr}
+  .gal figure{position:relative;overflow:hidden;border-radius:6px;margin:0}
+  .gal img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 1.2s cubic-bezier(.22,1,.36,1)}
+  .gal figure:hover img{transform:scale(1.04)}
+  .gal .big{aspect-ratio:4/3}
+  .gal-col figure{aspect-ratio:auto}
+  .gal-row.bottom figure{aspect-ratio:16/8}
+  .gal figcaption{position:absolute;left:16px;bottom:16px;font-size:10px;font-weight:600;letter-spacing:.18em;
+    text-transform:uppercase;color:#fff;background:rgba(10,12,8,.62);backdrop-filter:blur(6px);
+    padding:9px 16px;border-radius:999px}
+
+  /* ---------- quote ---------- */
+  .ss-quote{padding:0 0 110px}
+  .ss-quote-box{background:#15201a;color:#f4f1ea;border-radius:6px;padding:110px 8vw 120px}
+  .ss-quote-text{font-family:var(--serif);font-style:italic;font-weight:500;
+    font-size:clamp(28px,3vw,46px);line-height:1.3;max-width:900px;margin-bottom:44px}
+  .ss-quote-src{font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--gold-soft)}
+
+  /* ---------- why different ---------- */
+  .ss-why{padding:0 0 120px}
+  .ss-why-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:70px;align-items:center}
+  .ss-why-img{border-radius:6px;overflow:hidden}
+  .ss-why-img img{width:100%;display:block;aspect-ratio:16/10;object-fit:cover}
+  .ss-why-list{list-style:none;margin-top:34px}
+  .ss-why-list li{position:relative;padding-left:26px;margin-bottom:22px;font-size:15px;line-height:1.7;color:#3c3a30}
+  .ss-why-list li::before{content:"";position:absolute;left:0;top:.62em;width:7px;height:7px;border-radius:50%;background:var(--gold-soft)}
+
+  /* ---------- cta ---------- */
+  .ss-cta{padding:0 0 120px}
+  .ss-cta-box{background:#15201a;color:#f4f1ea;border-radius:6px;padding:110px 24px 120px;text-align:center}
+  .ss-cta-kicker{font-size:11px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;color:var(--gold-soft);margin-bottom:34px}
+  .ss-cta-head{font-family:var(--serif);font-weight:500;font-size:clamp(34px,3.4vw,56px);line-height:1.15;margin-bottom:26px}
+  .ss-cta-sub{font-size:15px;color:rgba(244,241,234,.7);margin-bottom:52px}
+  .ss-cta-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+  .btn-gold{font-weight:600;font-size:14px;letter-spacing:.02em;color:#1c1708;background:var(--gold);
+    text-decoration:none;padding:17px 34px;border-radius:999px;transition:background .3s ease,transform .3s ease}
+  .btn-gold:hover{background:#dcc08a;transform:translateY(-1px)}
+  .btn-ghost{font-weight:500;font-size:14px;letter-spacing:.02em;color:#f4f1ea;background:transparent;
+    border:1px solid rgba(244,241,234,.35);text-decoration:none;padding:17px 34px;border-radius:999px;
+    transition:border-color .3s ease,transform .3s ease}
+  .btn-ghost:hover{border-color:rgba(244,241,234,.8);transform:translateY(-1px)}
+
+  /* ---------- footer ---------- */
+  .ss-footer{background:#0d100c;color:#8d8d84;padding:44px 7vw;display:flex;justify-content:space-between;
+    align-items:center;gap:20px;font-size:14px}
+  .ss-footer .mark{font-family:var(--serif);font-style:italic;font-weight:500;font-size:17px;color:#f4f1ea}
+  .ss-footer a{color:var(--gold);text-decoration:none}
+  .ss-footer a:hover{text-decoration:underline}
+
+  @media (max-width:900px){
+    .feat{grid-template-columns:48px 1fr;gap:20px}
+    .feat .feat-note{grid-column:2;justify-self:start}
+    .gal-row.top{grid-template-columns:1fr}
+    .ss-why-grid{grid-template-columns:1fr;gap:44px}
+  }
+  @media (max-width:760px){
+    .ss-nav{padding:20px 22px}
+    .ss-overlay{margin-left:7vw;padding-right:7vw}
+    .ss-stats-grid{grid-template-columns:repeat(2,1fr)}
+    .ss-wrap{padding:0 24px}
+    .gal-row.bottom{grid-template-columns:1fr}
+    .ss-footer{flex-direction:column;text-align:center}
+  }
+</style>
+</head>
+<body>
+
+<div class="ss-loader" id="loader">
+  <p>Caricamento della villa…</p>
+  <div class="bar"><i id="loadbar"></i></div>
+</div>
+
+<nav class="ss-nav">
+  <a href="#top" class="ss-nav-mark">Villa <span>Laguna</span></a>
+  <a href="#" class="ss-nav-cta">Prenota Ora</a>
+</nav>
+
+<div class="ss-video-spacer" id="top">
+  <div class="ss-stage">
+    <canvas class="ss-canvas" id="canvas"></canvas>
+    <div class="ss-vignette"></div>
+
+    <div class="ss-scene" data-align="start">
+      <div class="ss-overlay"><div class="ss-overlay-inner">
+        <p class="ss-kicker rise">Caorle, Veneto</p>
+        <h2 class="ss-scene-headline rise">Il mare a due passi.<br><em>Zero pensieri.</em></h2>
+        <p class="ss-scene-copy rise">Villa Laguna sorge a pochi minuti dalla spiaggia di Caorle, tra la laguna e il litorale. Niente code, niente stress: solo la tua vacanza.</p>
+      </div></div>
+    </div>
+
+    <div class="ss-scene" data-align="start">
+      <div class="ss-overlay"><div class="ss-overlay-inner">
+        <p class="ss-kicker rise">L'arrivo</p>
+        <h2 class="ss-scene-headline rise">Una facciata discreta che non anticipa nulla di ciò che troverai dentro.</h2>
+        <p class="ss-scene-copy rise">Viale alberato, doppio posto auto e il primo assaggio della struttura di vetro che ti aspetta all'interno.</p>
+      </div></div>
+    </div>
+
+    <div class="ss-scene" data-align="start">
+      <div class="ss-overlay"><div class="ss-overlay-inner">
+        <p class="ss-kicker rise">Gli interni</p>
+        <h2 class="ss-scene-headline rise">Aperta, calda e pensata per chi non vorrebbe mai andare via.</h2>
+        <p class="ss-scene-copy rise">Una parete camino rivestita in legno ancora la zona living, i pavimenti chiari portano la luce fino alla grande vetrata.</p>
+      </div></div>
+    </div>
+
+    <div class="ss-scene" data-align="center">
+      <div class="ss-overlay"><div class="ss-overlay-inner">
+        <p class="ss-kicker rise">La sorpresa</p>
+        <h2 class="ss-scene-headline rise">Poi la parete di vetro si apre su qualcosa che nessun altro alloggio ha.</h2>
+        <p class="ss-scene-copy rise">26 porte scorrevoli. 36 lucernari. Una piscina coperta e una spa tutte per te, con il sole o con la pioggia.</p>
+      </div></div>
+    </div>
+
+    <div class="ss-scene" data-align="center">
+      <div class="ss-overlay"><div class="ss-overlay-inner">
+        <p class="ss-kicker rise">Villa Laguna</p>
+        <h2 class="ss-scene-headline rise">La vacanza non deve finire mai.</h2>
+        <p class="ss-scene-copy rise">Un solarium con piscina affacciato sul verde del litorale. Non esiste niente di simile tra Jesolo e Caorle.</p>
+      </div></div>
+    </div>
+
+    <div class="ss-hint" id="hint">
+      <svg width="26" height="40" viewBox="0 0 26 40" fill="none">
+        <rect x="1" y="1" width="24" height="38" rx="12" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>
+        <circle cx="13" cy="12" r="2.5" fill="rgba(255,255,255,.9)"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<section class="ss-stats">
+  <div class="ss-stats-grid">
+    <div class="ss-stat"><div class="k">A partire da</div><div class="v">€290<small>/notte</small></div></div>
+    <div class="ss-stat"><div class="k">Ospiti</div><div class="v">8</div></div>
+    <div class="ss-stat"><div class="k">Camere / Bagni</div><div class="v">4<small>/</small>3</div></div>
+    <div class="ss-stat"><div class="k">Dalla spiaggia</div><div class="v">300<small>m</small></div></div>
+  </div>
+</section>
+
+<section class="ss-light ss-estate">
+  <div class="ss-wrap">
+    <p class="ss-sec-kicker">La Villa</p>
+    <h2 class="ss-sec-head">Il litorale veneziano,<br>senza rinunce.</h2>
+    <p class="ss-sec-copy">Questa villa unica sorge a Caorle, a due passi dalla spiaggia e dal centro storico, tra il verde della pineta e la quiete della laguna. Al centro della casa c'è qualcosa che non troverai in nessun altro alloggio della zona: una piscina coperta con spa, racchiusa in una galleria di vetro con 26 porte scorrevoli e 36 lucernari che la riempiono di luce.</p>
+
+    <div class="ss-feats">
+      <div class="feat">
+        <span class="num">01</span>
+        <div>
+          <h3>Piscina coperta &amp; spa</h3>
+          <p class="feat-copy">Una galleria con tetto vetrato avvolge piscina e spa nella luce naturale tutto l'anno. Ogni camera si affaccia direttamente sull'acqua.</p>
+        </div>
+        <p class="feat-note">Con il sole o con la pioggia, a mezzogiorno o a mezzanotte, il relax non si ferma mai.</p>
+      </div>
+      <div class="feat">
+        <span class="num">02</span>
+        <div>
+          <h3>Doppia cucina gourmet</h3>
+          <p class="feat-copy">Due forni, due lavelli, due microonde e un'isola centrale con grill, pensata per le grandi tavolate.</p>
+        </div>
+        <p class="feat-note">Una cucina fatta per condividere, non solo per cucinare.</p>
+      </div>
+      <div class="feat">
+        <span class="num">03</span>
+        <div>
+          <h3>A 300 metri dal mare</h3>
+          <p class="feat-copy">La spiaggia di Caorle a pochi minuti a piedi, il centro storico con i suoi ristoranti e i caratteristici scorci a cinque minuti in bici.</p>
+        </div>
+        <p class="feat-note">Molla l'auto e vivi la vacanza a piedi.</p>
+      </div>
+      <div class="feat">
+        <span class="num">04</span>
+        <div>
+          <h3>Ospiti felici, recensioni a 5 stelle</h3>
+          <p class="feat-copy">Storico di prenotazioni e recensioni eccellenti: la villa è amata da famiglie e gruppi di amici.</p>
+        </div>
+        <p class="feat-note">Prenotabile su Airbnb tutto l'anno.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ss-light ss-look">
+  <div class="ss-wrap">
+    <p class="ss-sec-kicker">Uno Sguardo Più Da Vicino</p>
+    <h2 class="ss-sec-head">Ogni stanza si apre<br>sul verde o sul vetro.</h2>
+
+    <div class="gal">
+      <div class="gal-row top">
+        <figure class="big"><img src="img/solarium.jpg" alt="Solarium e piscina coperta"><figcaption>Piscina &amp; Solarium</figcaption></figure>
+        <div class="gal-col">
+          <figure><img src="img/golf.jpg" alt="Il litorale visto dall'alto"><figcaption>Il Litorale</figcaption></figure>
+          <figure><img src="img/living.jpg" alt="Zona living"><figcaption>Zona Living</figcaption></figure>
+        </div>
+      </div>
+      <div class="gal-row bottom">
+        <figure><img src="img/facade.jpg" alt="La facciata della villa"><figcaption>La Facciata</figcaption></figure>
+        <figure><img src="img/reveal.jpg" alt="La vetrata sul solarium"><figcaption>La Vetrata</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ss-light ss-quote">
+  <div class="ss-wrap">
+    <div class="ss-quote-box">
+      <p class="ss-quote-text">"Chi viene qui non vorrebbe mai andarsene. Ed è esattamente questo il punto."</p>
+      <p class="ss-quote-src">Dalla recensione di un ospite</p>
+    </div>
+  </div>
+</section>
+
+<section class="ss-light ss-why">
+  <div class="ss-wrap">
+    <div class="ss-why-grid">
+      <div class="ss-why-img"><img src="img/whydiff.jpg" alt="Solarium con piscina coperta"></div>
+      <div>
+        <p class="ss-sec-kicker">Perché È Unica</p>
+        <h2 class="ss-sec-head">Nient'altro di simile<br>sul litorale.</h2>
+        <ul class="ss-why-list">
+          <li>A 300 metri dalla spiaggia di Caorle, raggiungibile a piedi</li>
+          <li>Piscina coperta e spa sotto 36 lucernari</li>
+          <li>26 porte scorrevoli che collegano ogni stanza al solarium</li>
+          <li>Doppia cucina pensata per famiglie e grandi gruppi</li>
+          <li>Parcheggio privato e biciclette a disposizione</li>
+          <li>Check-in flessibile e host sempre disponibile</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ss-light ss-cta">
+  <div class="ss-wrap">
+    <div class="ss-cta-box">
+      <p class="ss-cta-kicker">Villa Laguna, Caorle (VE)</p>
+      <h2 class="ss-cta-head">Prenota le tue date<br>prima che sia troppo tardi.</h2>
+      <p class="ss-cta-sub">Disponibile su Airbnb tutto l'anno. Da €290 a notte.</p>
+      <div class="ss-cta-btns">
+        <a href="#" class="btn-gold">Prenota su Airbnb</a>
+        <a href="#" class="btn-ghost">Scrivici per Info</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="ss-footer">
+  <span class="mark">Villa Laguna</span>
+  <span>Caorle, Venezia</span>
+  <a href="#">Prenota su Airbnb</a>
+</footer>
+
+<script>
+(function(){
+  var TOTAL = 361;
+  var canvas = document.getElementById('canvas');
+  var ctx = canvas.getContext('2d');
+  var spacer = document.querySelector('.ss-video-spacer');
+  var scenes = Array.prototype.slice.call(document.querySelectorAll('.ss-scene'));
+  var loader = document.getElementById('loader');
+  var loadbar = document.getElementById('loadbar');
+  var hint = document.getElementById('hint');
+
+  var frames = new Array(TOTAL + 1); // 1-indexed
+  var loadedCount = 0, loaderDone = false;
+  var current = 1;
+  var target = 1;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  function frameURL(n){
+    return 'frames/frame_' + String(n).padStart(4,'0') + '.jpg';
+  }
+
+  function resize(){
+    canvas.width  = Math.round(window.innerWidth  * dpr);
+    canvas.height = Math.round(window.innerHeight * dpr);
+    draw(Math.round(current));
+  }
+
+  function draw(n){
+    var img = frames[n] || nearestLoaded(n);
+    if(!img) return;
+    var cw = canvas.width, ch = canvas.height;
+    var s = Math.max(cw / img.width, ch / img.height);
+    var w = img.width * s, h = img.height * s;
+    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+  }
+
+  function nearestLoaded(n){
+    for(var d = 1; d < TOTAL; d++){
+      if(frames[n - d]) return frames[n - d];
+      if(frames[n + d]) return frames[n + d];
+    }
+    return null;
+  }
+
+  var EAGER = 20, CONCURRENCY = 8, inFlight = 0, next = EAGER + 1;
+
+  function maybeFinishLoad(){
+    if(!loaderDone && loadedCount >= EAGER){
+      loaderDone = true;
+      loader.classList.add('done');
+      hint.classList.add('on');
+      onScroll();
+    }
+    loadbar.style.width = Math.round(loadedCount / TOTAL * 100) + '%';
+  }
+
+  function loadOne(n){
+    inFlight++;
+    var img = new Image();
+    img.onload = img.onerror = function(){
+      if(img.naturalWidth) frames[n] = img;
+      loadedCount++;
+      inFlight--;
+      maybeFinishLoad();
+      pump();
+    };
+    img.src = frameURL(n);
+  }
+
+  function pump(){
+    while(inFlight < CONCURRENCY && next <= TOTAL){
+      if(!frames[next]) loadOne(next);
+      next++;
+    }
+  }
+
+  for(var i = 1; i <= EAGER; i++) loadOne(i);
+
+  function onScroll(){
+    var rect = spacer.getBoundingClientRect();
+    var scrollable = rect.height - window.innerHeight;
+    var p = Math.min(1, Math.max(0, -rect.top / scrollable));
+    target = 1 + p * (TOTAL - 1);
+    updateScenes(p);
+  }
+
+  function updateScenes(p){
+    var N = scenes.length;
+    for(var i = 0; i < N; i++){
+      var start = i / N, end = (i + 1) / N;
+      var fade = 0.035;
+      var op = 0;
+      if(p >= start - fade && p <= end + fade){
+        op = Math.min(1, (p - (start - fade)) / (fade * 1.2));
+        if(i < N - 1) op = Math.min(op, 1 - Math.max(0, (p - (end - fade)) / (fade * 1.2)));
+        else op = Math.min(op, 1);
+        op = Math.max(0, Math.min(1, op));
+      }
+      var sc = scenes[i];
+      sc.style.opacity = op;
+      sc.style.visibility = op > 0.01 ? 'visible' : 'hidden';
+      sc.classList.toggle('on', op > 0.5);
+    }
+    hint.style.opacity = (p < 0.02 && loaderDone) ? .85 : 0;
+  }
+
+  var lastDrawn = null;
+  function tick(){
+    if(Math.abs(target - current) > 0.05){
+      current += (target - current) * 0.12;
+    }
+    var n = Math.round(current);
+    if(frames[n] && frames[n] !== lastDrawn){
+      lastDrawn = frames[n];
+      draw(n);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', resize);
+  resize();
+  onScroll();
+  tick();
+})();
+</script>
+</body>
+</html>
