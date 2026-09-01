@@ -1,0 +1,5 @@
+.git
+.github
+assets/
+node_modules
+README.md
