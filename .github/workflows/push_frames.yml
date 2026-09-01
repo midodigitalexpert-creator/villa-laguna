@@ -1,0 +1,34 @@
+name: Scarica i frame del video
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-frames:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scarica i 361 frame
+        run: |
+          mkdir -p frames img
+          seq -w 1 361 | xargs -P 16 -I {} curl -sf --retry 3 \
+            "https://1229sw21stter.higgsfield.app/frames/frame_0{}.jpg" \
+            -o "frames/frame_0{}.jpg"
+      - name: Crea le immagini della galleria
+        run: |
+          cp frames/frame_0352.jpg img/solarium.jpg
+          cp frames/frame_0010.jpg img/golf.jpg
+          cp frames/frame_0163.jpg img/living.jpg
+          cp frames/frame_0100.jpg img/facade.jpg
+          cp frames/frame_0262.jpg img/reveal.jpg
+          cp frames/frame_0334.jpg img/whydiff.jpg
+      - name: Commit e push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add frames img
+          git commit -m "Aggiungi frame video e immagini galleria"
+          git push
