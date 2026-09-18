@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<script>
+  // Evita che il browser ripristini la vecchia posizione di scroll al reload:
+  // la sequenza deve sempre ripartire dall'inizio, altrimenti lo scroll
+  // "bloccato" della sezione hero entra in conflitto con una pagina già
+  // scrollata in basso e resta congelato in entrambe le direzioni.
+  if('scrollRestoration' in history){ history.scrollRestoration = 'manual'; }
+  window.scrollTo(0, 0);
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Villa Laguna, Caorle | Casa vacanze con piscina coperta</title>
@@ -540,6 +548,7 @@
     requestAnimationFrame(tick);
   }
 
+  window.scrollTo(0, 0);
   document.documentElement.style.overflow = 'hidden';
   document.body.style.overflow = 'hidden';
   window.addEventListener('wheel', onWheel, {passive:false});
