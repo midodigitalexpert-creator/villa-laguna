@@ -41,9 +41,9 @@
   .ss-loader .bar i{display:block;height:100%;width:0%;background:var(--gold);transition:width .2s linear}
 
   /* ---------- scroll sequence ---------- */
-  .ss-video-spacer{position:relative;height:720vh}
-  .ss-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--ink)}
-  .ss-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;pointer-events:none;background:var(--ink)}
+  .ss-video-spacer{position:relative;height:100vh;height:100svh}
+  .ss-stage{position:relative;height:100%;overflow:hidden;background:var(--ink)}
+  .ss-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   .ss-vignette{position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(to bottom,rgba(6,7,4,.42) 0%,rgba(6,7,4,0) 22%,rgba(6,7,4,0) 62%,rgba(6,7,4,.55) 100%)}
 
@@ -179,8 +179,7 @@
 
 <div class="ss-video-spacer" id="top">
   <div class="ss-stage">
-    <video class="ss-canvas" id="scrollvideo" src="scroll-video.mp4" poster="poster.jpg"
-      muted playsinline webkit-playsinline="true" preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1"></video>
+    <canvas class="ss-canvas" id="canvas"></canvas>
     <div class="ss-vignette"></div>
 
     <div class="ss-scene" data-align="start">
@@ -356,78 +355,153 @@
 
 <script>
 (function(){
-  var video = document.getElementById('scrollvideo');
-  var spacer = document.querySelector('.ss-video-spacer');
+  var TOTAL = 361;
+  var canvas = document.getElementById('canvas');
+  var ctx = canvas.getContext('2d');
   var scenes = Array.prototype.slice.call(document.querySelectorAll('.ss-scene'));
   var loader = document.getElementById('loader');
   var loadbar = document.getElementById('loadbar');
   var hint = document.getElementById('hint');
 
-  var duration = 0;
-  var target = 0;
-  var seeking = false;
+  var frames = new Array(TOTAL + 1); // 1-indexed
+  var loadedMax = 0;     // ultimo frame caricato SENZA buchi prima di lui
+  var loadedSet = {};
   var loaderDone = false;
-  var iosUnlocked = false;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-  // iOS Safari non disegna il primo frame finché il video non viene "avviato"
-  // almeno una volta: lo facciamo partire mutato e lo mettiamo subito in pausa.
-  function unlockIOS(){
-    if(iosUnlocked) return;
-    iosUnlocked = true;
-    video.muted = true;
-    var p = video.play();
-    if(p && p.then) p.then(function(){ video.pause(); }).catch(function(){});
-    else video.pause();
+  function frameURL(n){
+    return 'frames/frame_' + String(n).padStart(4,'0') + '.jpg';
   }
 
-  function finishLoad(){
-    if(loaderDone) return;
-    loaderDone = true;
-    loadbar.style.width = '100%';
-    loader.classList.add('done');
-    hint.classList.add('on');
-    onScroll();
+  function resize(){
+    canvas.width  = Math.round(window.innerWidth  * dpr);
+    canvas.height = Math.round(window.innerHeight * dpr);
+    draw(Math.round(vp) + 1);
   }
 
-  video.addEventListener('loadedmetadata', function(){
-    duration = video.duration || 0;
-    unlockIOS();
-  });
-
-  video.addEventListener('progress', function(){
-    if(!duration || !video.buffered.length) return;
-    var end = video.buffered.end(video.buffered.length - 1);
-    loadbar.style.width = Math.min(100, Math.round(end / duration * 100)) + '%';
-  });
-
-  // scrubbing pronto non appena il browser stima di poter riprodurre senza
-  // ulteriori attese: per un file di ~20MB è questione di secondi, non di
-  // dover scaricare 361 immagini separate una per una.
-  video.addEventListener('canplaythrough', finishLoad);
-  // rete lenta o evento che non parte: non blocchiamo la pagina all'infinito
-  setTimeout(finishLoad, 7000);
-
-  video.addEventListener('seeked', function(){
-    seeking = false;
-    if(Math.abs(video.currentTime - target) > 0.02) requestSeek();
-  });
-
-  function requestSeek(){
-    if(seeking || !duration) return;
-    if(Math.abs(video.currentTime - target) < 0.01) return;
-    seeking = true;
-    try{ video.currentTime = target; }
-    catch(e){ seeking = false; }
+  function draw(n){
+    var img = frames[n];
+    if(!img) return;
+    var cw = canvas.width, ch = canvas.height;
+    var s = Math.max(cw / img.width, ch / img.height);
+    var w = img.width * s, h = img.height * s;
+    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
   }
 
-  function onScroll(){
-    if(!duration) return;
-    var rect = spacer.getBoundingClientRect();
-    var scrollable = rect.height - window.innerHeight;
-    var p = Math.min(1, Math.max(0, -rect.top / scrollable));
-    target = p * duration;
-    updateScenes(p);
-    requestSeek();
+  // ---------- caricamento sequenziale con concorrenza limitata ----------
+  var CONCURRENCY = 6, inFlight = 0, next = 1;
+
+  function recomputeLoadedMax(){
+    while(loadedSet[loadedMax + 1]) loadedMax++;
+  }
+
+  function loadOne(n){
+    inFlight++;
+    var img = new Image();
+    img.onload = img.onerror = function(){
+      if(img.naturalWidth) frames[n] = img;
+      loadedSet[n] = true;
+      recomputeLoadedMax();
+      inFlight--;
+      if(!loaderDone && frames[1]){
+        loaderDone = true;
+        loader.classList.add('done');
+        hint.classList.add('on');
+      }
+      loadbar.style.width = Math.round(loadedMax / TOTAL * 100) + '%';
+      pump();
+    };
+    img.src = frameURL(n);
+  }
+
+  function pump(){
+    while(inFlight < CONCURRENCY && next <= TOTAL){
+      loadOne(next);
+      next++;
+    }
+  }
+  pump();
+
+  // ---------- scroll "bloccato": lo scroll reale della pagina resta fermo
+  // finché non è stata mostrata tutta la sequenza. Se l'input arriva più
+  // veloce di quanto i frame si scarichino, l'avanzamento si ferma
+  // sull'ultimo frame pronto invece di saltare avanti o disallinearsi. ----------
+  var vp = 0;        // posizione corrente mostrata (0 .. TOTAL-1)
+  var vpTarget = 0;
+  var locked = true;
+
+  function sensitivity(){
+    // stessa "quantità" di scroll percepita della vecchia sezione 720vh
+    return TOTAL / (7.2 * window.innerHeight);
+  }
+
+  function clampTarget(){
+    vpTarget = Math.max(0, Math.min(TOTAL - 1, vpTarget));
+    var maxAllowed = Math.max(0, loadedMax - 1);
+    if(vpTarget > maxAllowed) vpTarget = maxAllowed;
+  }
+
+  function tryUnlock(goingDown){
+    var atEnd = vpTarget >= TOTAL - 1 && loadedMax >= TOTAL;
+    if(goingDown && atEnd){
+      locked = false;
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, 1);
+    }
+  }
+
+  function wheelUnit(e){
+    if(e.deltaMode === 1) return 16;          // linee
+    if(e.deltaMode === 2) return window.innerHeight; // pagine
+    return 1;                                  // pixel (default nei browser moderni)
+  }
+
+  function onWheel(e){
+    if(!locked) return;
+    e.preventDefault();
+    vpTarget += e.deltaY * wheelUnit(e) * sensitivity();
+    var goingDown = e.deltaY > 0;
+    clampTarget();
+    tryUnlock(goingDown);
+  }
+
+  var touchY = null;
+  function onTouchStart(e){
+    if(!locked) return;
+    touchY = e.touches[0].clientY;
+  }
+  function onTouchMove(e){
+    if(!locked || touchY === null) return;
+    e.preventDefault();
+    var y = e.touches[0].clientY;
+    var delta = touchY - y; // positivo = trascina verso l'alto = scrolla giù
+    touchY = y;
+    vpTarget += delta * sensitivity();
+    var goingDown = delta > 0;
+    clampTarget();
+    tryUnlock(goingDown);
+  }
+
+  function onKeyDown(e){
+    if(!locked) return;
+    var map = {ArrowDown:1, PageDown:1, ' ':1, ArrowUp:-1, PageUp:-1};
+    if(!(e.key in map)) return;
+    e.preventDefault();
+    var dir = map[e.key];
+    vpTarget += dir * 24 * sensitivity() * window.innerHeight * 0.05;
+    clampTarget();
+    tryUnlock(dir > 0);
+  }
+
+  function onScrollWhileUnlocked(){
+    if(locked) return;
+    if(window.scrollY <= 0){
+      locked = true;
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      vpTarget = TOTAL - 1;
+    }
   }
 
   function updateScenes(p){
@@ -450,12 +524,32 @@
     hint.style.opacity = (p < 0.02 && loaderDone) ? .85 : 0;
   }
 
-  window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', onScroll);
-  window.addEventListener('touchstart', unlockIOS, {passive:true, once:true});
-  window.addEventListener('pointerdown', unlockIOS, {passive:true, once:true});
+  var lastDrawn = -1;
+  function tick(){
+    if(Math.abs(vpTarget - vp) > 0.02){
+      vp += (vpTarget - vp) * 0.16;
+    } else {
+      vp = vpTarget;
+    }
+    var n = Math.round(vp) + 1;
+    if(n !== lastDrawn && frames[n]){
+      lastDrawn = n;
+      draw(n);
+    }
+    updateScenes(vp / (TOTAL - 1));
+    requestAnimationFrame(tick);
+  }
 
-  onScroll();
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  window.addEventListener('wheel', onWheel, {passive:false});
+  window.addEventListener('touchstart', onTouchStart, {passive:true});
+  window.addEventListener('touchmove', onTouchMove, {passive:false});
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('scroll', onScrollWhileUnlocked, {passive:true});
+  window.addEventListener('resize', resize);
+  resize();
+  tick();
 })();
 </script>
 </body>
