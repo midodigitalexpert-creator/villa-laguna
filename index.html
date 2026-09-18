@@ -43,7 +43,7 @@
   /* ---------- scroll sequence ---------- */
   .ss-video-spacer{position:relative;height:720vh}
   .ss-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:var(--ink)}
-  .ss-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .ss-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover;pointer-events:none;background:var(--ink)}
   .ss-vignette{position:absolute;inset:0;pointer-events:none;
     background:linear-gradient(to bottom,rgba(6,7,4,.42) 0%,rgba(6,7,4,0) 22%,rgba(6,7,4,0) 62%,rgba(6,7,4,.55) 100%)}
 
@@ -179,7 +179,8 @@
 
 <div class="ss-video-spacer" id="top">
   <div class="ss-stage">
-    <canvas class="ss-canvas" id="canvas"></canvas>
+    <video class="ss-canvas" id="scrollvideo" src="scroll-video.mp4" poster="poster.jpg"
+      muted playsinline webkit-playsinline="true" preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1"></video>
     <div class="ss-vignette"></div>
 
     <div class="ss-scene" data-align="start">
@@ -355,88 +356,78 @@
 
 <script>
 (function(){
-  var TOTAL = 361;
-  var canvas = document.getElementById('canvas');
-  var ctx = canvas.getContext('2d');
+  var video = document.getElementById('scrollvideo');
   var spacer = document.querySelector('.ss-video-spacer');
   var scenes = Array.prototype.slice.call(document.querySelectorAll('.ss-scene'));
   var loader = document.getElementById('loader');
   var loadbar = document.getElementById('loadbar');
   var hint = document.getElementById('hint');
 
-  var frames = new Array(TOTAL + 1); // 1-indexed
-  var loadedCount = 0, loaderDone = false;
-  var current = 1;
-  var target = 1;
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var duration = 0;
+  var target = 0;
+  var seeking = false;
+  var loaderDone = false;
+  var iosUnlocked = false;
 
-  function frameURL(n){
-    return 'frames/frame_' + String(n).padStart(4,'0') + '.jpg';
+  // iOS Safari non disegna il primo frame finché il video non viene "avviato"
+  // almeno una volta: lo facciamo partire mutato e lo mettiamo subito in pausa.
+  function unlockIOS(){
+    if(iosUnlocked) return;
+    iosUnlocked = true;
+    video.muted = true;
+    var p = video.play();
+    if(p && p.then) p.then(function(){ video.pause(); }).catch(function(){});
+    else video.pause();
   }
 
-  function resize(){
-    canvas.width  = Math.round(window.innerWidth  * dpr);
-    canvas.height = Math.round(window.innerHeight * dpr);
-    draw(Math.round(current));
+  function finishLoad(){
+    if(loaderDone) return;
+    loaderDone = true;
+    loadbar.style.width = '100%';
+    loader.classList.add('done');
+    hint.classList.add('on');
+    onScroll();
   }
 
-  function draw(n){
-    var img = frames[n] || nearestLoaded(n);
-    if(!img) return;
-    var cw = canvas.width, ch = canvas.height;
-    var s = Math.max(cw / img.width, ch / img.height);
-    var w = img.width * s, h = img.height * s;
-    ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+  video.addEventListener('loadedmetadata', function(){
+    duration = video.duration || 0;
+    unlockIOS();
+  });
+
+  video.addEventListener('progress', function(){
+    if(!duration || !video.buffered.length) return;
+    var end = video.buffered.end(video.buffered.length - 1);
+    loadbar.style.width = Math.min(100, Math.round(end / duration * 100)) + '%';
+  });
+
+  // scrubbing pronto non appena il browser stima di poter riprodurre senza
+  // ulteriori attese: per un file di ~20MB è questione di secondi, non di
+  // dover scaricare 361 immagini separate una per una.
+  video.addEventListener('canplaythrough', finishLoad);
+  // rete lenta o evento che non parte: non blocchiamo la pagina all'infinito
+  setTimeout(finishLoad, 7000);
+
+  video.addEventListener('seeked', function(){
+    seeking = false;
+    if(Math.abs(video.currentTime - target) > 0.02) requestSeek();
+  });
+
+  function requestSeek(){
+    if(seeking || !duration) return;
+    if(Math.abs(video.currentTime - target) < 0.01) return;
+    seeking = true;
+    try{ video.currentTime = target; }
+    catch(e){ seeking = false; }
   }
-
-  function nearestLoaded(n){
-    for(var d = 1; d < TOTAL; d++){
-      if(frames[n - d]) return frames[n - d];
-      if(frames[n + d]) return frames[n + d];
-    }
-    return null;
-  }
-
-  var EAGER = 20, CONCURRENCY = 8, inFlight = 0, next = EAGER + 1;
-
-  function maybeFinishLoad(){
-    if(!loaderDone && loadedCount >= EAGER){
-      loaderDone = true;
-      loader.classList.add('done');
-      hint.classList.add('on');
-      onScroll();
-    }
-    loadbar.style.width = Math.round(loadedCount / TOTAL * 100) + '%';
-  }
-
-  function loadOne(n){
-    inFlight++;
-    var img = new Image();
-    img.onload = img.onerror = function(){
-      if(img.naturalWidth) frames[n] = img;
-      loadedCount++;
-      inFlight--;
-      maybeFinishLoad();
-      pump();
-    };
-    img.src = frameURL(n);
-  }
-
-  function pump(){
-    while(inFlight < CONCURRENCY && next <= TOTAL){
-      if(!frames[next]) loadOne(next);
-      next++;
-    }
-  }
-
-  for(var i = 1; i <= EAGER; i++) loadOne(i);
 
   function onScroll(){
+    if(!duration) return;
     var rect = spacer.getBoundingClientRect();
     var scrollable = rect.height - window.innerHeight;
     var p = Math.min(1, Math.max(0, -rect.top / scrollable));
-    target = 1 + p * (TOTAL - 1);
+    target = p * duration;
     updateScenes(p);
+    requestSeek();
   }
 
   function updateScenes(p){
@@ -459,24 +450,12 @@
     hint.style.opacity = (p < 0.02 && loaderDone) ? .85 : 0;
   }
 
-  var lastDrawn = null;
-  function tick(){
-    if(Math.abs(target - current) > 0.05){
-      current += (target - current) * 0.12;
-    }
-    var n = Math.round(current);
-    if(frames[n] && frames[n] !== lastDrawn){
-      lastDrawn = frames[n];
-      draw(n);
-    }
-    requestAnimationFrame(tick);
-  }
-
   window.addEventListener('scroll', onScroll, {passive:true});
-  window.addEventListener('resize', resize);
-  resize();
+  window.addEventListener('resize', onScroll);
+  window.addEventListener('touchstart', unlockIOS, {passive:true, once:true});
+  window.addEventListener('pointerdown', unlockIOS, {passive:true, once:true});
+
   onScroll();
-  tick();
 })();
 </script>
 </body>
